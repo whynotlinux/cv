@@ -1,0 +1,36 @@
+# Builds the PDFs from the published page, then deploys to GitHub Pages.
+name: Publish CV
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build PDFs
+        run: |
+          mkdir dist
+          cp index.html dist/
+          for lang in fr en; do
+            google-chrome --headless=new --disable-gpu --no-sandbox --no-pdf-header-footer \
+              --virtual-time-budget=8000 --print-to-pdf="dist/cv-$lang.pdf" "file://$PWD/index.html#$lang"
+          done
+          test -s dist/cv-fr.pdf && test -s dist/cv-en.pdf
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
